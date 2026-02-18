@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import EntrepreneurCard from "@/components/EntrepreneurCard";
 import { Helmet } from "react-helmet-async";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { 
+import { supabase } from "@/integrations/supabase/client";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -13,82 +14,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Sample data - would come from database
-const sampleEntrepreneurs = [
-  {
-    id: "1",
-    name: "Dulces del Sur",
-    category: "Gastronomía",
-    description: "Repostería artesanal con sabores patagónicos. Tortas, kuchen, galletas y postres para todo tipo de celebraciones. Hacemos pedidos personalizados.",
-    phone: "+56912345678",
-    whatsapp: "+56912345678",
-    plan: "basic" as const,
-  },
-  {
-    id: "2",
-    name: "Lanas Australes",
-    category: "Moda y Accesorios",
-    description: "Tejidos a mano con lana de oveja patagónica 100% natural. Chalecos, bufandas, gorros y accesorios únicos hechos con amor. Cada pieza es única y lleva el calor del sur.",
-    phone: "+56987654321",
-    whatsapp: "+56987654321",
-    facebook: "https://facebook.com/lanasaustrales",
-    instagram: "https://instagram.com/lanasaustrales",
-    plan: "business" as const,
-  },
-  {
-    id: "3",
-    name: "Patagonia Shots",
-    category: "Fotografía y Video",
-    description: "Fotografía profesional para eventos, retratos, productos y paisajes. Capturamos los momentos más importantes de tu vida con la belleza única de la Patagonia como telón de fondo. Servicio de edición y entrega digital incluido.",
-    phone: "+56911223344",
-    whatsapp: "+56911223344",
-    facebook: "https://facebook.com/patagoniashots",
-    instagram: "https://instagram.com/patagoniashots",
-    website: "https://patagoniashots.cl",
-    images: [
-      "https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=400&h=300&fit=crop",
-    ],
-    plan: "premium" as const,
-  },
-  {
-    id: "4",
-    name: "Tech Magallanes",
-    category: "Servicios Técnicos",
-    description: "Reparación de computadores, notebooks y celulares. Servicio técnico con garantía.",
-    phone: "+56955667788",
-    whatsapp: "+56955667788",
-    plan: "basic" as const,
-  },
-  {
-    id: "5",
-    name: "Spa Glaciar",
-    category: "Salud y Bienestar",
-    description: "Centro de masajes y tratamientos relajantes inspirados en la naturaleza patagónica. Masajes descontracturantes, piedras calientes, aromaterapia y más. Reserva tu hora de relax.",
-    phone: "+56944556677",
-    whatsapp: "+56944556677",
-    facebook: "https://facebook.com/spaglaciar",
-    instagram: "https://instagram.com/spaglaciar",
-    plan: "business" as const,
-  },
-  {
-    id: "6",
-    name: "Sabores Magallánicos",
-    category: "Gastronomía",
-    description: "Conservas artesanales con productos de la región. Mermeladas de calafate, ruibarbo, murtilla y más. Ideales para regalar o disfrutar en casa. Todos nuestros productos son 100% naturales, sin preservantes ni colorantes artificiales. Envíos a todo Chile.",
-    phone: "+56933445566",
-    whatsapp: "+56933445566",
-    facebook: "https://facebook.com/saboresmagallanicos",
-    instagram: "https://instagram.com/saboresmagallanicos",
-    website: "https://saboresmagallanicos.cl",
-    images: [
-      "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1590779033100-9f60a05a013d?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1612257416648-ee7a6c533e4f?w=400&h=300&fit=crop",
-    ],
-    plan: "premium" as const,
-  },
-];
+interface Entrepreneur {
+  id: string;
+  business_name: string;
+  category: string;
+  description: string;
+  phone: string | null;
+  whatsapp: string | null;
+  facebook: string | null;
+  instagram: string | null;
+  website: string | null;
+  plan: "basic" | "business" | "premium";
+  images?: string[];
+}
 
 const categories = [
   "Todas",
@@ -105,19 +43,57 @@ const categories = [
 const DirectorioPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [entrepreneurs, setEntrepreneurs] = useState<Entrepreneur[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEntrepreneurs = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("entrepreneurs")
+        .select("id, business_name, category, description, phone, whatsapp, facebook, instagram, website, plan")
+        .eq("status", "active");
+
+      if (!error && data) {
+        // Fetch photos for each entrepreneur
+        const ids = data.map((e) => e.id);
+        const { data: photos } = await supabase
+          .from("emprendedor_fotos")
+          .select("entrepreneur_id, url")
+          .in("entrepreneur_id", ids.length > 0 ? ids : ["__none__"]);
+
+        const photoMap = new Map<string, string[]>();
+        photos?.forEach((p) => {
+          const existing = photoMap.get(p.entrepreneur_id) || [];
+          existing.push(p.url);
+          photoMap.set(p.entrepreneur_id, existing);
+        });
+
+        setEntrepreneurs(
+          data.map((e) => ({
+            ...e,
+            images: photoMap.get(e.id) || undefined,
+          }))
+        );
+      }
+      setLoading(false);
+    };
+
+    fetchEntrepreneurs();
+  }, []);
 
   const filteredEntrepreneurs = useMemo(() => {
-    return sampleEntrepreneurs.filter((entrepreneur) => {
-      const matchesSearch = 
-        entrepreneur.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return entrepreneurs.filter((entrepreneur) => {
+      const matchesSearch =
+        entrepreneur.business_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         entrepreneur.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = 
+
+      const matchesCategory =
         selectedCategory === "Todas" || entrepreneur.category === selectedCategory;
-      
+
       return matchesSearch && matchesCategory;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, entrepreneurs]);
 
   return (
     <>
@@ -128,7 +104,7 @@ const DirectorioPage = () => {
 
       <div className="min-h-screen bg-background">
         <Header />
-        
+
         <main className="pt-28 pb-20">
           {/* Hero */}
           <section className="container mx-auto px-4 mb-10">
@@ -174,14 +150,31 @@ const DirectorioPage = () => {
 
           {/* Results */}
           <section className="container mx-auto px-4">
-            {filteredEntrepreneurs.length > 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              </div>
+            ) : filteredEntrepreneurs.length > 0 ? (
               <>
                 <p className="text-muted-foreground mb-6">
                   {filteredEntrepreneurs.length} emprendedor{filteredEntrepreneurs.length !== 1 ? "es" : ""} encontrado{filteredEntrepreneurs.length !== 1 ? "s" : ""}
                 </p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredEntrepreneurs.map((entrepreneur) => (
-                    <EntrepreneurCard key={entrepreneur.id} {...entrepreneur} />
+                    <EntrepreneurCard
+                      key={entrepreneur.id}
+                      id={entrepreneur.id}
+                      name={entrepreneur.business_name}
+                      category={entrepreneur.category}
+                      description={entrepreneur.description}
+                      phone={entrepreneur.phone ?? undefined}
+                      whatsapp={entrepreneur.whatsapp ?? undefined}
+                      facebook={entrepreneur.facebook ?? undefined}
+                      instagram={entrepreneur.instagram ?? undefined}
+                      website={entrepreneur.website ?? undefined}
+                      images={entrepreneur.images}
+                      plan={entrepreneur.plan}
+                    />
                   ))}
                 </div>
               </>
