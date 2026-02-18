@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      emprendedor_fotos: {
+        Row: {
+          created_at: string
+          entrepreneur_id: string
+          id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          entrepreneur_id: string
+          id?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          entrepreneur_id?: string
+          id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emprendedor_fotos_entrepreneur_id_fkey"
+            columns: ["entrepreneur_id"]
+            isOneToOne: false
+            referencedRelation: "entrepreneurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entrepreneurs: {
+        Row: {
+          business_name: string
+          category: string
+          created_at: string
+          description: string
+          facebook: string | null
+          id: string
+          instagram: string | null
+          phone: string | null
+          plan: Database["public"]["Enums"]["plan_type"]
+          status: string
+          updated_at: string
+          user_id: string | null
+          website: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          business_name: string
+          category: string
+          created_at?: string
+          description: string
+          facebook?: string | null
+          id?: string
+          instagram?: string | null
+          phone?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          business_name?: string
+          category?: string
+          created_at?: string
+          description?: string
+          facebook?: string | null
+          id?: string
+          instagram?: string | null
+          phone?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"]
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          website?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +102,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      plan_type: "basic" | "business" | "premium"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +229,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      plan_type: ["basic", "business", "premium"],
+    },
   },
 } as const
