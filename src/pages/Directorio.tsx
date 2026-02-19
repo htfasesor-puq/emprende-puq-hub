@@ -25,7 +25,6 @@ interface Entrepreneur {
   instagram: string | null;
   website: string | null;
   plan: "basic" | "business" | "premium";
-  images?: string[];
 }
 
 const categories = [
@@ -55,26 +54,7 @@ const DirectorioPage = () => {
         .eq("status", "active");
 
       if (!error && data) {
-        // Fetch photos for each entrepreneur
-        const ids = data.map((e) => e.id);
-        const { data: photos } = await supabase
-          .from("emprendedor_fotos")
-          .select("entrepreneur_id, url")
-          .in("entrepreneur_id", ids.length > 0 ? ids : ["__none__"]);
-
-        const photoMap = new Map<string, string[]>();
-        photos?.forEach((p) => {
-          const existing = photoMap.get(p.entrepreneur_id) || [];
-          existing.push(p.url);
-          photoMap.set(p.entrepreneur_id, existing);
-        });
-
-        setEntrepreneurs(
-          data.map((e) => ({
-            ...e,
-            images: photoMap.get(e.id) || undefined,
-          }))
-        );
+        setEntrepreneurs(data);
       }
       setLoading(false);
     };
@@ -172,7 +152,6 @@ const DirectorioPage = () => {
                       facebook={entrepreneur.facebook ?? undefined}
                       instagram={entrepreneur.instagram ?? undefined}
                       website={entrepreneur.website ?? undefined}
-                      images={entrepreneur.images}
                       plan={entrepreneur.plan}
                     />
                   ))}
