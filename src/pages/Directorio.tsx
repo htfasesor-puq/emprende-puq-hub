@@ -53,8 +53,13 @@ const DirectorioPage = () => {
         .select("id, business_name, category, description, phone, whatsapp, facebook, instagram, website, plan")
         .eq("status", "active");
 
+      console.log('Datos de Supabase:', data);
+      console.log('Error de Supabase:', error);
+      console.log('Cantidad de emprendedores:', data?.length);
+
       if (!error && data) {
         setEntrepreneurs(data);
+        console.log('Estado entrepreneurs actualizado:', data);
       }
       setLoading(false);
     };
